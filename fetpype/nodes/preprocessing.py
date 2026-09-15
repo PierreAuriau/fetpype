@@ -545,6 +545,49 @@ class CheckAndSortStacksAndMasks(BaseInterface):
         return outputs
 
 
+class DilateMaskInputSpec(BaseInterfaceInputSpec):
+    brain_mask = File(exists=True, mandatory=True, desc="Input brain mask")
+    dilation_steps = traits.Int(1, usedefault=True, desc="Number of dilation iterations")
+    is_enabled = traits.Bool(True, usedefault=True, desc="Enable dilation")
+
+
+class DilateMaskOutputSpec(TraitedSpec):
+    dilated_brain_mask = File(desc="Dilated brain mask file")
+
+
+class DilateMask(BaseInterface):
+    input_spec = DilateMaskInputSpec
+    output_spec = DilateMaskOutputSpec
+
+    def _gen_filename(self, name):
+        if name == "dilated_mask":
+            base = os.path.basename(self.inputs.mask)
+            return os.path.abspath(base.replace(".nii.gz", "_dilated.nii.gz"))
+        return None
+
+    def _run_interface(self, runtime):
+        out = self._gen_filename("dilated_mask")
+        if not self.inputs.is_enabled:
+            os.system(f"cp {self.inputs.brain_mask} {out}")
+            return runtime
+
+        brain_mask_ni = ni.load(self.inputs.brain_mask)
+        brain_mask = brain_mask_ni.get_fdata()
+
+        dilated_brain_mask = ndimage.binary_dilation(brain_mask,
+                                                     iterations=int(self.inputs.dilation_steps),
+                                                     axes=(0, 1),
+                                                     dtype=brain_mask.dtype)
+        dilated_brain_mask_ni = ni.Nifti1Image(dilated_brain_mask, 
+                                               brain_mask_ni.affine, 
+                                               brain_mask_ni.header)
+        ni.save(dilated_brain_mask_ni, out)
+        return runtime
+
+    def _list_outputs(self):
+        return {"dilated_brain_mask": self._gen_filename("dilated_mask")}
+
+
 def run_prepro_cmd(
     input_stacks,
     cmd,
