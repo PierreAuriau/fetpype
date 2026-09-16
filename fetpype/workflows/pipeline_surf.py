@@ -93,7 +93,7 @@ def create_surf_workflow(
                 name = name.split("_")
             is_valid = False
             for n in name:
-                if n in VALID_SEGMENTATION:
+                if n.lower() in [s.lower() for s in VALID_SEGMENTATION]:
                     is_valid = True
                     break
             if not is_valid:
