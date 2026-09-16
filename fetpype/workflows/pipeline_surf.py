@@ -166,10 +166,12 @@ def create_surf_workflow(
     )
 
     main_workflow.connect(
-        fet_pipe, "outputnode.output_surf_lh", surf_datasink, f"{pipeline_name}_lh"
+        fet_pipe, "outputnode.output_surf_lh", 
+        surf_datasink, f"{pipeline_name}_lh"
     )
     main_workflow.connect(
-        fet_pipe, "outputnode.output_surf_rh", surf_datasink, f"{pipeline_name}_rh"
+        fet_pipe, "outputnode.output_surf_rh", 
+        surf_datasink, f"{pipeline_name}_rh"
     )
     if cfg.save_graph:
         main_workflow.write_graph(
