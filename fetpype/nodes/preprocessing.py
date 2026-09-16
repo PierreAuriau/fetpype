@@ -1,5 +1,6 @@
 import numpy as np
 import nibabel as ni
+from scipy.ndimage import binary_dilation
 import os
 from nipype.interfaces.base import (
     traits,
@@ -545,47 +546,98 @@ class CheckAndSortStacksAndMasks(BaseInterface):
         return outputs
 
 
-class DilateMaskInputSpec(BaseInterfaceInputSpec):
-    brain_mask = File(exists=True, mandatory=True, desc="Input brain mask")
-    dilation_steps = traits.Int(1, usedefault=True, desc="Number of dilation iterations")
-    is_enabled = traits.Bool(True, usedefault=True, desc="Enable dilation")
+class DilateMasksInputSpec(BaseInterfaceInputSpec):
+    """Class used to represent the inputs of the
+    DilateMasks interface.
+    """
+    mask = File(
+        mandatory=True, 
+        desc="Input mask filename"
+        )
+    iterations = traits.Int(
+        1,
+        usedefault=True,
+        desc="Number of dilation iterations"
+        )
+    is_enabled = traits.Bool(
+        True,
+        usedefault=True,
+        desc="Enable dilation"
+        )
 
 
-class DilateMaskOutputSpec(TraitedSpec):
-    dilated_brain_mask = File(desc="Dilated brain mask file")
+class DilateMasksOutputSpec(TraitedSpec):
+    """Class used to represent the inputs of the
+        DilateMasks interface.
+    """
+    dilated_mask = File(desc="Dilated mask")
 
 
-class DilateMask(BaseInterface):
-    input_spec = DilateMaskInputSpec
-    output_spec = DilateMaskOutputSpec
+class DilateMasks(BaseInterface):
+    """
+    Interface to dilate mask.
+
+    Args:
+
+        mask (input; str): Input mask filename.
+        dilation_steps(input; int): Number of dilation iterations.
+        is_enabled (input; bool): Whether dilation is enabled.
+
+        dilated_mask (output; str): Path to the dilated mask.
+    Examples:
+    #TODO
+    """
+    input_spec = DilateMasksInputSpec
+    output_spec = DilateMasksOutputSpec
+    _results = {}
 
     def _gen_filename(self, name):
         if name == "dilated_mask":
-            base = os.path.basename(self.inputs.mask)
-            return os.path.abspath(base.replace(".nii.gz", "_dilated.nii.gz"))
+            return os.path.abspath(os.path.basename(self.inputs.mask))
         return None
 
+    def _dilate_mask(self, mask_path, iterations):
+        mask_ni = ni.load(mask_path)
+        mask = mask_ni.get_fdata()
+
+        assert np.argmin(mask.shape) == 2, "Wrong mask dimension"
+        try:
+            dilated_mask = binary_dilation(mask.astype(bool),
+                                           iterations=iterations,
+                                           axes=(0, 1))
+        except TypeError:
+            # SciPy older than 1.15: do per-slice dilation (equivalent)
+            dilated_mask = np.zeros_like(mask)
+            struct = np.zeros((3, 3), dtype=bool)
+            struct[1] = np.array([[False, True, False],
+                                  [True, True, True],
+                                  [False, True, False]], dtype=bool)
+            dilated_mask = binary_dilation(mask.astype(bool),
+                                           iterations=iterations,
+                                           structure=struct)
+        
+        dilated_mask_ni = ni.Nifti1Image(dilated_mask.astype(mask.dtype),
+                                         mask_ni.affine,
+                                         mask_ni.header)
+        ni.save(dilated_mask_ni, self._gen_filename("dilate_mask"))
+
     def _run_interface(self, runtime):
-        out = self._gen_filename("dilated_mask")
-        if not self.inputs.is_enabled:
-            os.system(f"cp {self.inputs.brain_mask} {out}")
-            return runtime
-
-        brain_mask_ni = ni.load(self.inputs.brain_mask)
-        brain_mask = brain_mask_ni.get_fdata()
-
-        dilated_brain_mask = ndimage.binary_dilation(brain_mask,
-                                                     iterations=int(self.inputs.dilation_steps),
-                                                     axes=(0, 1),
-                                                     dtype=brain_mask.dtype)
-        dilated_brain_mask_ni = ni.Nifti1Image(dilated_brain_mask, 
-                                               brain_mask_ni.affine, 
-                                               brain_mask_ni.header)
-        ni.save(dilated_brain_mask_ni, out)
+        if self.inputs.is_enabled:
+            self._dilate_mask(
+                self.inputs.mask,
+                self.inputs.iterations
+            )
+        else:
+            os.system(
+                f"cp {self.inputs.mask} "
+                f"{self._gen_filename('dilated_mask')}"
+            )
         return runtime
 
     def _list_outputs(self):
-        return {"dilated_brain_mask": self._gen_filename("dilated_mask")}
+        outputs = self._outputs().get()
+        outputs["dilated_mask"] = self._gen_filename("dilated_mask")
+        return outputs
 
 
 def run_prepro_cmd(
