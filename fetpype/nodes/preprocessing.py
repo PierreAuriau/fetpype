@@ -597,33 +597,34 @@ class DilateMasks(BaseInterface):
 
     def _gen_filename(self, name):
         if name == "dilated_mask":
-            return os.path.abspath(os.path.basename(self.inputs.mask))
+            filename = os.path.basename(self.inputs.mask)
+            filename = filename.replace("mask", "dilated_mask")
+            return os.path.abspath(filename)
         return None
 
     def _dilate_mask(self, mask_path, iterations):
         mask_ni = ni.load(mask_path)
         mask = mask_ni.get_fdata()
 
+        # Do per slice binary dilation
         assert np.argmin(mask.shape) == 2, "Wrong mask dimension"
         try:
             dilated_mask = binary_dilation(mask.astype(bool),
                                            iterations=iterations,
                                            axes=(0, 1))
         except TypeError:
-            # SciPy older than 1.15: do per-slice dilation (equivalent)
+            # SciPy older than 1.15:
             dilated_mask = np.zeros_like(mask)
-            struct = np.zeros((3, 3, 3), dtype=bool)
-            struct[1] = np.array([[False, True, False],
-                                  [True, True, True],
-                                  [False, True, False]], dtype=bool)
-            dilated_mask = binary_dilation(mask.astype(bool),
-                                           iterations=iterations,
-                                           structure=struct)
-
-        dilated_mask_ni = ni.Nifti1Image(dilated_mask.astype(mask.dtype),
-                                         mask_ni.affine,
-                                         mask_ni.header)
-        ni.save(dilated_mask_ni, self._gen_filename("dilated_mask"))
+            for i in range(mask.shape[2]):
+                dilated_mask[:, :, i] = binary_dilation(
+                    mask[:, :, i].astype(bool),
+                    iterations=iterations
+                    )
+        finally:
+            dilated_mask_ni = ni.Nifti1Image(dilated_mask.astype(mask.dtype),
+                                             mask_ni.affine,
+                                             mask_ni.header)
+            ni.save(dilated_mask_ni, self._gen_filename("dilated_mask"))
 
     def _run_interface(self, runtime):
         if self.inputs.is_enabled:
