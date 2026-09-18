@@ -14,7 +14,7 @@ brain_extraction:
 check_stacks_and_masks:
   enabled: true
 
-dilation:
+mask_dilation:
   enabled: true
   iterations: 8
 

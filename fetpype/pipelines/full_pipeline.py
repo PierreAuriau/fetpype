@@ -59,7 +59,7 @@ def get_prepro(cfg, load_masks=False, enabled_cropping=False):
         print("Overriding cropping enabled status for the selected pipeline.")
     enabled_denoising = True
     enabled_bias_corr = cfg_prepro.bias_correction.enabled
-    enabled_dilation = cfg_prepro.dilation.enabled
+    enabled_dilation = cfg_prepro.mask_dilation.enabled
 
     # PREPROCESSING
     # 0. Define input and outputs
@@ -113,7 +113,7 @@ def get_prepro(cfg, load_masks=False, enabled_cropping=False):
                           iterfield=["mask"],
                           name=dilation_name)
     dilation.inputs.is_enabled = enabled_dilation
-    dilation.inputs.iterations = cfg_prepro.dilation.iterations
+    dilation.inputs.iterations = cfg_prepro.mask_dilation.iterations
 
     # 2. Check stacks and masks
     check_name = "CheckAffineAndRes"
