@@ -551,7 +551,7 @@ class DilateMasksInputSpec(BaseInterfaceInputSpec):
     DilateMasks interface.
     """
     mask = File(
-        mandatory=True, 
+        mandatory=True,
         desc="Input mask filename"
         )
     iterations = traits.Int(
@@ -585,7 +585,11 @@ class DilateMasks(BaseInterface):
 
         dilated_mask (output; str): Path to the dilated mask.
     Examples:
-    #TODO
+        >>> from fetpype.nodes.preprocessing import DilateMasks()
+        >>> dilate_mask = DilateMasks()
+        >>> dilate_mask.inputs.mask = 'sub-01_acq-haste_run-1_T2w_mask.nii.gz'
+        >>> dilate_mask.inputs.iterations = 8
+        >>> dilate_mask.run() # doctest: +SKIP
     """
     input_spec = DilateMasksInputSpec
     output_spec = DilateMasksOutputSpec
@@ -608,18 +612,18 @@ class DilateMasks(BaseInterface):
         except TypeError:
             # SciPy older than 1.15: do per-slice dilation (equivalent)
             dilated_mask = np.zeros_like(mask)
-            struct = np.zeros((3, 3), dtype=bool)
+            struct = np.zeros((3, 3, 3), dtype=bool)
             struct[1] = np.array([[False, True, False],
                                   [True, True, True],
                                   [False, True, False]], dtype=bool)
             dilated_mask = binary_dilation(mask.astype(bool),
                                            iterations=iterations,
                                            structure=struct)
-        
+
         dilated_mask_ni = ni.Nifti1Image(dilated_mask.astype(mask.dtype),
                                          mask_ni.affine,
                                          mask_ni.header)
-        ni.save(dilated_mask_ni, self._gen_filename("dilate_mask"))
+        ni.save(dilated_mask_ni, self._gen_filename("dilated_mask"))
 
     def _run_interface(self, runtime):
         if self.inputs.is_enabled:
