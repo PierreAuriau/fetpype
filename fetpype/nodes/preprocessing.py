@@ -575,15 +575,20 @@ class DilateMasksOutputSpec(TraitedSpec):
 
 class DilateMasks(BaseInterface):
     """
-    Interface to dilate mask.
+    Interface to dilate brain masks per slice.
+
+    Dilation ensures that the whole brain is included inside the brain mask as
+    brain extraction may crop some brain tissues. Overall, it should improve
+    the reconstruction and segmentation steps for some subjects.
 
     Args:
 
         mask (input; str): Input mask filename.
-        dilation_steps(input; int): Number of dilation iterations.
+        iterations(input; int): Number of dilation iterations.
         is_enabled (input; bool): Whether dilation is enabled.
 
         dilated_mask (output; str): Path to the dilated mask.
+
     Examples:
         >>> from fetpype.nodes.preprocessing import DilateMasks()
         >>> dilate_mask = DilateMasks()
@@ -606,25 +611,23 @@ class DilateMasks(BaseInterface):
         mask_ni = ni.load(mask_path)
         mask = mask_ni.get_fdata()
 
+        # Check the low resolution axis should be the last one
+        zooms = np.asarray(mask_ni.header.get_zooms()[:3])
+        low_resolution_axis = int(np.argmax(zooms))
+        if low_resolution_axis != 2:
+            raise ValueError(
+                f"Expected the lowest-resolution axis to be 2, "
+                f"but got axis {low_resolution_axis}; voxel sizes are {zooms}"
+            )
+
         # Do per slice binary dilation
-        assert np.argmin(mask.shape) == 2, "Wrong mask dimension"
-        try:
-            dilated_mask = binary_dilation(mask.astype(bool),
-                                           iterations=iterations,
-                                           axes=(0, 1))
-        except TypeError:
-            # SciPy older than 1.15:
-            dilated_mask = np.zeros_like(mask)
-            for i in range(mask.shape[2]):
-                dilated_mask[:, :, i] = binary_dilation(
-                    mask[:, :, i].astype(bool),
-                    iterations=iterations
-                    )
-        finally:
-            dilated_mask_ni = ni.Nifti1Image(dilated_mask.astype(mask.dtype),
-                                             mask_ni.affine,
-                                             mask_ni.header)
-            ni.save(dilated_mask_ni, self._gen_filename("dilated_mask"))
+        dilated_mask = binary_dilation(mask.astype(bool),
+                                       iterations=iterations,
+                                       axes=(0, 1))
+        dilated_mask_ni = ni.Nifti1Image(dilated_mask.astype(mask.dtype),
+                                         mask_ni.affine,
+                                         mask_ni.header)
+        ni.save(dilated_mask_ni, self._gen_filename("dilated_mask"))
 
     def _run_interface(self, runtime):
         if self.inputs.is_enabled:
