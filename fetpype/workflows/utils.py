@@ -228,10 +228,10 @@ def check_valid_pipeline(cfg):
             )
         if cfg.segmentation.pipeline == "multibounti":
             if ("reconstruction" in cfg) & \
-              (cfg.reconstruction.output_resolution > 0.5):
+              (cfg.reconstruction.output_resolution != 0.5):
                 raise ValueError(
                     f"Multi-BOUNTI segmentation requires an input resolution "
-                    f"of at least 0.5mm³. The reconstruction resolution is "
+                    f"of 0.5mm³. The reconstruction resolution is "
                     f"currently set to: "
                     f"{cfg.reconstruction.output_resolution}."
                 )
