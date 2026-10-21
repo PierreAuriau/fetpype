@@ -14,6 +14,9 @@ Several state-of-the-art segmentation algorithms have been wrapped and tested in
 
 The version of the algorithm used in fetpype is the one available on the Docker Hub, which have some changes to the original code. The repository is available at <https://github.com/fetpype/dhcp-structural-pipeline>.
 
+!!! Note
+    The multi-BOUNTI method requires an input resolution of 0.5mm³. To run the full pipeline with multi-BOUNTI, the reconstruction resolution must be set to a value of 0.5. Further information on the input requirements for multi-BOUNTI segmentation can be found on the method’s GitHub repository.
+
 ## Config structure
 Here's a typical structure found in the BOUNTI config. 
 ```yaml
