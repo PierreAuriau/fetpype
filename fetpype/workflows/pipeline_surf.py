@@ -90,8 +90,7 @@ def create_surf_workflow(
             with open(data_desc, "r") as f:
                 data_desc = json.load(f)
             name = data_desc.get("Name", None)
-            if "_" in name:
-                name = name.split("_")
+            name = name.split("_")
             is_valid = False
             for n in name:
                 if n.lower() in [s.lower() for s in VALID_SEGMENTATION]:
